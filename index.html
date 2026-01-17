@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POKÉMON FIREDUST - GBA DEMO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        body {
+            background: #000;
+            font-family: 'Press Start 2P', monospace;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+        
+        #gba-screen {
+            width: 480px;
+            height: 320px;
+            background: #8bac0f;
+            border: 4px solid #306230;
+            position: relative;
+            overflow: hidden;
+            image-rendering: pixelated;
+        }
+        
+        .screen-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .game-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Overworld Map */
+        .map-tile {
+            width: 16px;
+            height: 16px;
+            position: absolute;
+            background-color: #8bac0f;
+        }
+        
+        .grass {
+            background-color: #306230;
+        }
+        
+        .water {
+            background-color: #0f380f;
+        }
+        
+        .path {
+            background-color: #9bbc0f;
+        }
+        
+        .tree {
+            background-color: #0f380f;
+        }
+        
+        .house {
+            background-color: #306230;
+        }
+        
+        /* Player Sprite */
+        #player {
+            position: absolute;
+            width: 16px;
+            height: 24px;
+            background-color: #306230;
+            z-index: 10;
+            transition: all 0.15s ease;
+        }
+        
+        .player-head {
+            width: 16px;
+            height: 8px;
+            background-color: #0f380f;
+        }
+        
+        .player-body {
+            width: 16px;
+            height: 16px;
+            background-color: #306230;
+            position: relative;
+        }
+        
+        /* NPCs */
+        .npc {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #9bbc0f;
+            z-index: 5;
+        }
+        
+        /* Text Box */
+        .text-box {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: #0f380f;
+            border: 4px solid #306230;
+            padding: 10px;
+            color: #9bbc0f;
+            font-size: 10px;
+            line-height: 1.4;
+            z-index: 100;
+        }
+        
+        .text-box .continue {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            color: #8bac0f;
+            font-size: 8px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* Battle Screen */
+        .battle-bg {
+            background: linear-gradient(to bottom, #0f380f 0%, #306230 100%);
+            width: 100%;
+            height: 100%;
+        }
+        
+        .battle-ui {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: #0f380f;
+            border-top: 4px solid #306230;
+        }
+        
+        .battle-options {
+            position: absolute;
+            bottom: 100px;
+            right: 0;
+            width: 160px;
+            height: 80px;
+            background: #0f380f;
+            border: 4px solid #306230;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        
+        .battle-option {
+            background: #306230;
+            color: #9bbc0f;
+            border: 2px solid #8bac0f;
+            padding: 5px;
+            font-size: 8px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .battle-option:hover {
+            background: #8bac0f;
+            color: #0f380f;
+        }
+        
+        .battle-option:active {
+            transform: scale(0.95);
+        }
+        
+        .pokemon-sprite {
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            image-rendering: pixelated;
+        }
+        
+        .enemy-pokemon {
+            top: 40px;
+            right: 40px;
+        }
+        
+        .player-pokemon {
+            bottom: 120px;
+            left: 40px;
+        }
+        
+        .hp-bar {
+            width: 100px;
+            height: 8px;
+            background: #0f380f;
+            border: 1px solid #306230;
+            position: relative;
+        }
+        
+        .hp-fill {
+            height: 100%;
+            background: #9bbc0f;
+            transition: width 0.3s;
+        }
+        
+        /* Start Screen */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f380f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .title {
+            font-size: 24px;
+            color: #9bbc0f;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 0 #0f380f;
+            text-align: center;
+        }
+        
+        .start-button {
+            background: #306230;
+            color: #9bbc0f;
+            border: 4px solid #8bac0f;
+            padding: 15px 30px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px;
+            text-transform: uppercase;
+        }
+        
+        .start-button:hover {
+            background: #8bac0f;
+            color: #0f380f;
+        }
+        
+        /* Menu Screen */
+        .menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 56, 15, 0.95);
+            z-index: 900;
+            padding: 20px;
+        }
+        
+        .menu-options {
+            margin-top: 40px;
+        }
+        
+        .menu-option {
+            padding: 10px;
+            margin: 10px 0;
+            background: #306230;
+            border: 2px solid #8bac0f;
+            color: #9bbc0f;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        
+        /* Inventory Screen */
+        .inventory-screen {
+            background: #0f380f;
+            border: 4px solid #306230;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .item {
+            padding: 5px;
+            margin: 2px 0;
+            background: #306230;
+            color: #9bbc0f;
+            font-size: 8px;
+        }
+        
+        /* Pokémon List */
+        .pokemon-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .pokemon-card {
+            background: #306230;
+            border: 2px solid #8bac0f;
+            padding: 10px;
+            font-size: 8px;
+        }
+        
+        /* Game Stats */
+        #game-stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(15, 56, 15, 0.8);
+            padding: 10px;
+            border: 2px solid #306230;
+            font-size: 8px;
+            z-index: 50;
+        }
+        
+        /* Battle Log */
+        .battle-log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 300px;
+            height: 80px;
+            background: rgba(15, 56, 15, 0.9);
+            border: 2px solid #306230;
+            padding: 10px;
+            font-size: 8px;
+            line-height: 1.4;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        
+        /* Controls Help */
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(15, 56, 15, 0.8);
+            padding: 10px;
+            border: 2px solid #306230;
+            font-size: 8px;
+            z-index: 50;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <div id="gba-screen">
+            <!-- Start Screen -->
+            <div id="start-screen">
+                <div class="title">POKÉMON<br>FIREDUST</div>
+                <button class="start-button" id="new-game-btn">NEW GAME</button>
+                <button class="start-button" id="continue-btn">CONTINUE</button>
+                <div style="margin-top: 30px; font-size: 8px; color: #8bac0f; text-align: center;">
+                    ARROW KEYS: Move<br>
+                    Z: Action / Select<br>
+                    X: Menu / Cancel<br>
+                    ENTER: Start
+                </div>
+            </div>
+            
+            <!-- Overworld Screen -->
+            <div id="overworld-screen" class="game-layer hidden">
+                <div id="map-container" class="screen-inner"></div>
+                <div id="player"></div>
+                <div id="npcs-container"></div>
+                <div id="text-box" class="text-box hidden">
+                    <div id="text-content"></div>
+                    <div class="continue">▼ Press Z</div>
+                </div>
+            </div>
+            
+            <!-- Battle Screen -->
+            <div id="battle-screen" class="game-layer hidden">
+                <div class="battle-bg"></div>
+                <div class="pokemon-sprite enemy-pokemon" id="enemy-pokemon"></div>
+                <div class="pokemon-sprite player-pokemon" id="player-pokemon"></div>
+                <div class="battle-log" id="battle-log"></div>
+                <div class="battle-ui">
+                    <div style="padding: 10px;">
+                        <div id="player-pokemon-name" style="color: #9bbc0f; font-size: 10px;">CHARMANO Lv.5</div>
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="player-hp-bar" style="width: 100%"></div>
+                        </div>
+                        <div id="player-hp-text" style="font-size: 8px; margin-top: 2px;">HP: 20/20</div>
+                    </div>
+                </div>
+                <div class="battle-options" id="battle-options">
+                    <div class="battle-option" data-action="fight">FIGHT</div>
+                    <div class="battle-option" data-action="pokemon">POKÉMON</div>
+                    <div class="battle-option" data-action="bag">BAG</div>
+                    <div class="battle-option" data-action="run">RUN</div>
+                </div>
+                <div class="battle-options hidden" id="move-options" style="grid-template-columns: 1fr 1fr 1fr 1fr;"></div>
+            </div>
+            
+            <!-- Menu Screen -->
+            <div id="menu-screen" class="menu-screen hidden">
+                <div class="title">MENU</div>
+                <div class="menu-options">
+                    <div class="menu-option" data-menu="pokemon">POKÉDEX</div>
+                    <div class="menu-option" data-menu="pokemon">POKÉMON</div>
+                    <div class="menu-option" data-menu="bag">BAG</div>
+                    <div class="menu-option" data-menu="save">SAVE</div>
+                    <div class="menu-option" data-menu="options">OPTIONS</div>
+                    <div class="menu-option" data-menu="exit">EXIT</div>
+                </div>
+            </div>
+            
+            <!-- Pokémon Screen -->
+            <div id="pokemon-screen" class="menu-screen hidden">
+                <div class="title">YOUR POKÉMON</div>
+                <div class="pokemon-list" id="pokemon-list"></div>
+                <div class="menu-option" style="margin-top: 20px;" id="back-to-menu">BACK</div>
+            </div>
+            
+            <!-- Bag Screen -->
+            <div id="bag-screen" class="menu-screen hidden">
+                <div class="title">BAG</div>
+                <div class="inventory-screen" id="inventory-items"></div>
+                <div class="menu-option" style="margin-top: 20px;" id="back-to-menu2">BACK</div>
+            </div>
+        </div>
+        
+        <div id="game-stats">
+            <div>POKÉDEX: <span id="pokedex-count">3</span></div>
+            <div>BADGES: <span id="badge-count">0</span></div>
+            <div>TIME: <span id="game-time">0:00</span></div>
+        </div>
+        
+        <div id="controls">
+            ARROWS: Move | Z: Action | X: Menu | ENTER: Start
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // POKÉMON FIREDUST - GBA-STYLE MINIMALIST VERSION
+        // ============================================
+        
+        // Game State
+        const GameState = {
+            START: 0,
+            OVERWORLD: 1,
+            BATTLE: 2,
+            MENU: 3,
+            DIALOGUE: 4,
+            POKEMON_LIST: 5,
+            BAG: 6
+        };
+        
+        let game = {
+            state: GameState.START,
+            player: {
+                x: 7,
+                y: 7,
+                direction: 0, // 0: down, 1: up, 2: left, 3: right
+                moving: false,
+                speed: 1,
+                map: 'starter_town'
+            },
+            mapData: null,
+            npcs: [],
+            pokemon: [],
+            inventory: [
+                { id: 'potion', name: 'Potion', count: 3 },
+                { id: 'pokeball', name: 'Poké Ball', count: 5 },
+                { id: 'antidote', name: 'Antidote', count: 2 }
+            ],
+            badges: 0,
+            pokedex: 3,
+            time: 0,
+            lastTime: 0,
+            battle: null,
+            currentText: null,
+            textIndex: 0,
+            keys: {}
+        };
+        
+        // Pokémon Data
+        const pokemonDatabase = {
+            charmano: {
+                id: 'charmano',
+                name: 'CHARMANO',
+                type: 'FIRE',
+                level: 5,
+                maxHp: 20,
+                currentHp: 20,
+                attack: 10,
+                defense: 8,
+                speed: 12,
+                moves: [
+                    { name: 'SCRATCH', power: 10, type: 'NORMAL', pp: 15 },
+                    { name: 'EMBER', power: 15, type: 'FIRE', pp: 10 }
+                ],
+                sprite: '🔥'
+            },
+            bulbasprout: {
+                id: 'bulbasprout',
+                name: 'BULBASPROUT',
+                type: 'GRASS',
+                level: 5,
+                maxHp: 22,
+                currentHp: 22,
+                attack: 9,
+                defense: 10,
+                speed: 9,
+                moves: [
+                    { name: 'TACKLE', power: 10, type: 'NORMAL', pp: 15 },
+                    { name: 'VINE WHIP', power: 15, type: 'GRASS', pp: 10 }
+                ],
+                sprite: '🌿'
+            },
+            squirtole: {
+                id: 'squirtole',
+                name: 'SQUIRTOLE',
+                type: 'WATER',
+                level: 5,
+                maxHp: 21,
+                currentHp: 21,
+                attack: 8,
+                defense: 11,
+                speed: 10,
+                moves: [
+                    { name: 'TACKLE', power: 10, type: 'NORMAL', pp: 15 },
+                    { name: 'WATER GUN', power: 15, type: 'WATER', pp: 10 }
+                ],
+                sprite: '💧'
+            },
+            pidgey: {
+                id: 'pidgey',
+                name: 'PIDGEY',
+                type: 'FLYING',
+                level: 3,
+                maxHp: 15,
+                currentHp: 15,
+                attack: 7,
+                defense: 6,
+                speed: 10,
+                moves: [
+                    { name: 'GUST', power: 12, type: 'FLYING', pp: 10 }
+                ],
+                sprite: '🐦'
+            },
+            rattata: {
+                id: 'rattata',
+                name: 'RATTATA',
+                type: 'NORMAL',
+                level: 4,
+                maxHp: 16,
+                currentHp: 16,
+                attack: 8,
+                defense: 5,
+                speed: 12,
+                moves: [
+                    { name: 'TACKLE', power: 10, type: 'NORMAL', pp: 15 }
+                ],
+                sprite: '🐀'
+            }
+        };
+        
+        // Type Effectiveness Chart (simplified)
+        const typeEffectiveness = {
+            FIRE: { GRASS: 2, WATER: 0.5, FIRE: 0.5 },
+            WATER: { FIRE: 2, GRASS: 0.5, WATER: 0.5 },
+            GRASS: { WATER: 2, FIRE: 0.5, GRASS: 0.5 },
+            NORMAL: {},
+            FLYING: { GRASS: 2 }
+        };
+        
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const overworldScreen = document.getElementById('overworld-screen');
+        const battleScreen = document.getElementById('battle-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        const pokemonScreen = document.getElementById('pokemon-screen');
+        const bagScreen = document.getElementById('bag-screen');
+        const mapContainer = document.getElementById('map-container');
+        const playerElement = document.getElementById('player');
+        const textBox = document.getElementById('text-box');
+        const textContent = document.getElementById('text-content');
+        const battleOptions = document.getElementById('battle-options');
+        const moveOptions = document.getElementById('move-options');
+        const battleLog = document.getElementById('battle-log');
+        const playerPokemonElement = document.getElementById('player-pokemon');
+        const enemyPokemonElement = document.getElementById('enemy-pokemon');
+        const playerHpBar = document.getElementById('player-hp-bar');
+        const playerHpText = document.getElementById('player-hp-text');
+        const pokemonListElement = document.getElementById('pokemon-list');
+        const inventoryItems = document.getElementById('inventory-items');
+        
+        // Game Variables
+        let mapWidth = 20;
+        let mapHeight = 15;
+        let tileSize = 16;
+        let currentMap = [];
+        let npcElements = [];
+        let grassEncounterTimer = 0;
+        let currentDialogue = null;
+        
+        // Initialize Game
+        function init() {
+            // Set up player's starter Pokémon
+            game.pokemon = [
+                JSON.parse(JSON.stringify(pokemonDatabase.charmano)),
+                JSON.parse(JSON.stringify(pokemonDatabase.bulbasprout)),
+                JSON.parse(JSON.stringify(pokemonDatabase.squirtole))
+            ];
+            
+            // Create starter town map
+            generateStarterTown();
+            
+            // Set up NPCs
+            game.npcs = [
+                { x: 5, y: 5, type: 'old_man', dialogue: ["Hello, young trainer!", "The tall grass ahead is dangerous.", "Wild Pokémon live there!"] },
+                { x: 12, y: 8, type: 'girl', dialogue: ["My PIDGEY is so cute!", "Want to see it?"] },
+                { x: 15, y: 3, type: 'boy', dialogue: ["Professor Oak is looking for you!", "He's in his lab."] }
+            ];
+            
+            // Render NPCs
+            renderNPCs();
+            
+            // Update game stats display
+            updateStats();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Start game loop
+            gameLoop();
+        }
+        
+        function generateStarterTown() {
+            currentMap = [];
+            
+            // Create empty map (grass)
+            for (let y = 0; y < mapHeight; y++) {
+                currentMap[y] = [];
+                for (let x = 0; x < mapWidth; x++) {
+                    // 30% chance of tall grass
+                    if (Math.random() < 0.3 && x > 10) {
+                        currentMap[y][x] = 'grass';
+                    } else {
+                        currentMap[y][x] = 'path';
+                    }
+                }
+            }
+            
+            // Add player's house
+            for (let y = 1; y < 4; y++) {
+                for (let x = 2; x < 6; x++) {
+                    if (y === 1 || y === 3 || x === 2 || x === 5) {
+                        currentMap[y][x] = 'tree';
+                    } else {
+                        currentMap[y][x] = 'house';
+                    }
+                }
+            }
+            
+            // Add Oak's lab
+            for (let y = 1; y < 4; y++) {
+                for (let x = 14; x < 18; x++) {
+                    if (y === 1 || y === 3 || x === 14 || x === 17) {
+                        currentMap[y][x] = 'tree';
+                    } else {
+                        currentMap[y][x] = 'house';
+                    }
+                }
+            }
+            
+            // Add a pond
+            for (let y = 9; y < 12; y++) {
+                for (let x = 3; x < 8; x++) {
+                    currentMap[y][x] = 'water';
+                }
+            }
+            
+            // Add a main path
+            for (let x = 0; x < mapWidth; x++) {
+                currentMap[7][x] = 'path';
+            }
+            
+            // Render the map
+            renderMap();
+            
+            // Position player
+            game.player.x = 7;
+            game.player.y = 7;
+            updatePlayerPosition();
+        }
+        
+        function renderMap() {
+            mapContainer.innerHTML = '';
+            
+            for (let y = 0; y < mapHeight; y++) {
+                for (let x = 0; x < mapWidth; x++) {
+                    const tile = document.createElement('div');
+                    tile.className = `map-tile ${currentMap[y][x]}`;
+                    tile.style.left = `${x * tileSize}px`;
+                    tile.style.top = `${y * tileSize}px`;
+                    
+                    // Add grass encounter trigger
+                    if (currentMap[y][x] === 'grass') {
+                        tile.dataset.grass = 'true';
+                    }
+                    
+                    mapContainer.appendChild(tile);
+                }
+            }
+        }
+        
+        function renderNPCs() {
+            const npcContainer = document.getElementById('npcs-container');
+            npcContainer.innerHTML = '';
+            npcElements = [];
+            
+            game.npcs.forEach((npc, index) => {
+                const npcElement = document.createElement('div');
+                npcElement.className = 'npc';
+                npcElement.style.left = `${npc.x * tileSize}px`;
+                npcElement.style.top = `${npc.y * tileSize}px`;
+                npcElement.dataset.index = index;
+                
+                // NPC appearance based on type
+                if (npc.type === 'old_man') {
+                    npcElement.style.backgroundColor = '#0f380f';
+                } else if (npc.type === 'girl') {
+                    npcElement.style.backgroundColor = '#9bbc0f';
+                } else {
+                    npcElement.style.backgroundColor = '#8bac0f';
+                }
+                
+                npcContainer.appendChild(npcElement);
+                npcElements.push(npcElement);
+            });
+        }
+        
+        function updatePlayerPosition() {
+            playerElement.style.left = `${game.player.x * tileSize}px`;
+            playerElement.style.top = `${game.player.y * tileSize - 8}px`; // Offset for height
+            
+            // Update player sprite based on direction
+            updatePlayerSprite();
+        }
+        
+        function updatePlayerSprite() {
+            playerElement.innerHTML = '';
+            
+            // Simple directional sprite (just color change for now)
+            let bodyColor = '#306230';
+            let headColor = '#0f380f';
+            
+            if (game.player.direction === 0) { // Down
+                bodyColor = '#306230';
+            } else if (game.player.direction === 1) { // Up
+                bodyColor = '#0f380f';
+            } else if (game.player.direction === 2) { // Left
+                bodyColor = '#8bac0f';
+            } else { // Right
+                bodyColor = '#9bbc0f';
+            }
+            
+            const head = document.createElement('div');
+            head.className = 'player-head';
+            head.style.backgroundColor = headColor;
+            
+            const body = document.createElement('div');
+            body.className = 'player-body';
+            body.style.backgroundColor = bodyColor;
+            
+            playerElement.appendChild(head);
+            playerElement.appendChild(body);
+        }
+        
+        function movePlayer(dx, dy) {
+            if (game.state !== GameState.OVERWORLD || game.player.moving) return;
+            
+            const newX = game.player.x + dx;
+            const newY = game.player.y + dy;
+            
+            // Check boundaries
+            if (newX < 0 || newX >= mapWidth || newY < 0 || newY >= mapHeight) {
+                return;
+            }
+            
+            // Check for impassable tiles
+            if (currentMap[newY][newX] === 'tree' || currentMap[newY][newY] === 'water') {
+                return;
+            }
+            
+            // Update direction
+            if (dx > 0) game.player.direction = 3;
+            if (dx < 0) game.player.direction = 2;
+            if (dy > 0) game.player.direction = 0;
+            if (dy < 0) game.player.direction = 1;
+            
+            // Update position
+            game.player.x = newX;
+            game.player.y = newY;
+            game.player.moving = true;
+            
+            updatePlayerPosition();
+            updatePlayerSprite();
+            
+            // Check for NPC interaction
+            checkNPCInteraction();
+            
+            // Check for grass encounters
+            if (currentMap[newY][newX] === 'grass') {
+                grassEncounterTimer++;
+                if (grassEncounterTimer > 3 && Math.random() < 0.3) {
+                    startWildBattle();
+                    grassEncounterTimer = 0;
+                }
+            } else {
+                grassEncounterTimer = 0;
+            }
+            
+            // Reset moving state after animation
+            setTimeout(() => {
+                game.player.moving = false;
+            }, 150);
+        }
+        
+        function checkNPCInteraction() {
+            // Check if player is facing an NPC
+            let checkX = game.player.x;
+            let checkY = game.player.y;
+            
+            if (game.player.direction === 0) checkY += 1; // Down
+            if (game.player.direction === 1) checkY -= 1; // Up
+            if (game.player.direction === 2) checkX -= 1; // Left
+            if (game.player.direction === 3) checkX += 1; // Right
+            
+            game.npcs.forEach((npc, index) => {
+                if (npc.x === checkX && npc.y === checkY) {
+                    startDialogue(npc.dialogue);
+                }
+            });
+        }
+        
+        function startDialogue(lines) {
+            game.state = GameState.DIALOGUE;
+            currentDialogue = lines;
+            game.textIndex = 0;
+            
+            textBox.classList.remove('hidden');
+            showNextDialogueLine();
+        }
+        
+        function showNextDialogueLine() {
+            if (game.textIndex < currentDialogue.length) {
+                textContent.textContent = currentDialogue[game.textIndex];
+                game.textIndex++;
+            } else {
+                endDialogue();
+            }
+        }
+        
+        function endDialogue() {
+            textBox.classList.add('hidden');
+            game.state = GameState.OVERWORLD;
+            currentDialogue = null;
+        }
+        
+        function startWildBattle() {
+            game.state = GameState.BATTLE;
+            overworldScreen.classList.add('hidden');
+            battleScreen.classList.remove('hidden');
+            
+            // Random wild Pokémon
+            const wildPokemonPool = ['pidgey', 'rattata'];
+            const wildPokemonId = wildPokemonPool[Math.floor(Math.random() * wildPokemonPool.length)];
+            const wildPokemon = JSON.parse(JSON.stringify(pokemonDatabase[wildPokemonId]));
+            
+            // Set up battle
+            game.battle = {
+                enemy: wildPokemon,
+                playerPokemonIndex: 0,
+                turn: 'player',
+                log: []
+            };
+            
+            // Update battle display
+            updateBattleDisplay();
+            addBattleLog(`A wild ${wildPokemon.name} appeared!`);
+        }
+        
+        function updateBattleDisplay() {
+            const playerPokemon = game.pokemon[game.battle.playerPokemonIndex];
+            const enemyPokemon = game.battle.enemy;
+            
+            // Update player Pokémon
+            playerPokemonElement.textContent = playerPokemon.sprite;
+            document.getElementById('player-pokemon-name').textContent = `${playerPokemon.name} Lv.${playerPokemon.level}`;
+            
+            // Update HP bar
+            const hpPercent = (playerPokemon.currentHp / playerPokemon.maxHp) * 100;
+            playerHpBar.style.width = `${hpPercent}%`;
+            playerHpText.textContent = `HP: ${playerPokemon.currentHp}/${playerPokemon.maxHp}`;
+            
+            // Update enemy Pokémon
+            enemyPokemonElement.textContent = enemyPokemon.sprite;
+            
+            // Show/hide battle options
+            if (game.battle.turn === 'player') {
+                battleOptions.classList.remove('hidden');
+                moveOptions.classList.add('hidden');
+            }
+        }
+        
+        function addBattleLog(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `> ${message}`;
+            battleLog.appendChild(logEntry);
+            
+            // Scroll to bottom
+            battleLog.scrollTop = battleLog.scrollHeight;
+            
+            // Keep only last 5 messages
+            if (battleLog.children.length > 5) {
+                battleLog.removeChild(battleLog.children[0]);
+            }
+        }
+        
+        function battleAction(action) {
+            if (game.battle.turn !== 'player') return;
+            
+            if (action === 'fight') {
+                // Show move selection
+                battleOptions.classList.add('hidden');
+                showMoveSelection();
+            } else if (action === 'pokemon') {
+                // Switch Pokémon (simplified)
+                addBattleLog("Not implemented in demo!");
+            } else if (action === 'bag') {
+                // Use item (simplified)
+                addBattleLog("Bag is empty in demo!");
+            } else if (action === 'run') {
+                // Try to run
+                if (Math.random() < 0.8) {
+                    addBattleLog("Got away safely!");
+                    endBattle();
+                } else {
+                    addBattleLog("Can't escape!");
+                    enemyTurn();
+                }
+            }
+        }
+        
+        function showMoveSelection() {
+            moveOptions.innerHTML = '';
+            const playerPokemon = game.pokemon[game.battle.playerPokemonIndex];
+            
+            playerPokemon.moves.forEach((move, index) => {
+                const option = document.createElement('div');
+                option.className = 'battle-option';
+                option.textContent = move.name;
+                option.dataset.moveIndex = index;
+                option.addEventListener('click', () => useMove(index));
+                moveOptions.appendChild(option);
+            });
+            
+            // Add back button
+            const backOption = document.createElement('div');
+            backOption.className = 'battle-option';
+            backOption.textContent = 'BACK';
+            backOption.style.gridColumn = 'span 2';
+            backOption.addEventListener('click', () => {
+                moveOptions.classList.add('hidden');
+                battleOptions.classList.remove('hidden');
+            });
+            moveOptions.appendChild(backOption);
+            
+            moveOptions.classList.remove('hidden');
+        }
+        
+        function useMove(moveIndex) {
+            const playerPokemon = game.pokemon[game.battle.playerPokemonIndex];
+            const enemyPokemon = game.battle.enemy;
+            const move = playerPokemon.moves[moveIndex];
+            
+            // Player attacks
+            const damage = calculateDamage(playerPokemon, enemyPokemon, move);
+            enemyPokemon.currentHp = Math.max(0, enemyPokemon.currentHp - damage);
+            
+            addBattleLog(`${playerPokemon.name} used ${move.name}!`);
+            if (damage > 0) {
+                addBattleLog(`It dealt ${damage} damage!`);
+            }
+            
+            // Check if enemy fainted
+            if (enemyPokemon.currentHp <= 0) {
+                addBattleLog(`Wild ${enemyPokemon.name} fainted!`);
+                addBattleLog(`${playerPokemon.name} gained 10 EXP!`);
+                
+                // Gain experience (simplified)
+                playerPokemon.level += 1;
+                playerPokemon.maxHp += 5;
+                playerPokemon.currentHp = playerPokemon.maxHp;
+                
+                setTimeout(() => {
+                    endBattle();
+                }, 1500);
+                return;
+            }
+            
+            // Enemy turn
+            setTimeout(() => {
+                enemyTurn();
+            }, 1000);
+        }
+        
+        function enemyTurn() {
+            game.battle.turn = 'enemy';
+            const playerPokemon = game.pokemon[game.battle.playerPokemonIndex];
+            const enemyPokemon = game.battle.enemy;
+            
+            // Enemy attacks with random move
+            const move = enemyPokemon.moves[Math.floor(Math.random() * enemyPokemon.moves.length)];
+            const damage = calculateDamage(enemyPokemon, playerPokemon, move);
+            playerPokemon.currentHp = Math.max(0, playerPokemon.currentHp - damage);
+            
+            addBattleLog(`Wild ${enemyPokemon.name} used ${move.name}!`);
+            if (damage > 0) {
+                addBattleLog(`It dealt ${damage} damage!`);
+            }
+            
+            // Update HP display
+            updateBattleDisplay();
+            
+            // Check if player fainted
+            if (playerPokemon.currentHp <= 0) {
+                addBattleLog(`${playerPokemon.name} fainted!`);
+                
+                setTimeout(() => {
+                    // Try to switch to another Pokémon
+                    const nextPokemon = game.pokemon.find(p => p.currentHp > 0);
+                    if (nextPokemon) {
+                        game.battle.playerPokemonIndex = game.pokemon.indexOf(nextPokemon);
+                        addBattleLog(`Go! ${nextPokemon.name}!`);
+                        game.battle.turn = 'player';
+                        updateBattleDisplay();
+                    } else {
+                        addBattleLog("You have no Pokémon left!");
+                        addBattleLog("You blacked out!");
+                        setTimeout(() => {
+                            endBattle();
+                        }, 2000);
+                    }
+                }, 1500);
+            } else {
+                game.battle.turn = 'player';
+                updateBattleDisplay();
+            }
+        }
+        
+        function calculateDamage(attacker, defender, move) {
+            // Simplified damage calculation
+            let damage = Math.floor((attacker.attack * move.power) / defender.defense);
+            
+            // Type effectiveness
+            const effectiveness = typeEffectiveness[move.type]?.[defender.type] || 1;
+            damage = Math.floor(damage * effectiveness);
+            
+            // Critical hit chance
+            if (Math.random() < 0.1) {
+                damage *= 2;
+            }
+            
+            // Random variation
+            damage = Math.floor(damage * (0.85 + Math.random() * 0.15));
+            
+            return Math.max(1, damage);
+        }
+        
+        function endBattle() {
+            game.state = GameState.OVERWORLD;
+            battleScreen.classList.add('hidden');
+            overworldScreen.classList.remove('hidden');
+            game.battle = null;
+            battleLog.innerHTML = '';
+        }
+        
+        function showMenu() {
+            if (game.state === GameState.OVERWORLD) {
+                game.state = GameState.MENU;
+                overworldScreen.classList.add('hidden');
+                menuScreen.classList.remove('hidden');
+            }
+        }
+        
+        function hideMenu() {
+            game.state = GameState.OVERWORLD;
+            menuScreen.classList.add('hidden');
+            pokemonScreen.classList.add('hidden');
+            bagScreen.classList.add('hidden');
+            overworldScreen.classList.remove('hidden');
+        }
+        
+        function showPokemonList() {
+            pokemonListElement.innerHTML = '';
+            
+            game.pokemon.forEach((pokemon, index) => {
+                const card = document.createElement('div');
+                card.className = 'pokemon-card';
+                card.innerHTML = `
+                    <strong>${pokemon.name}</strong><br>
+                    Lv. ${pokemon.level} ${pokemon.type}<br>
+                    HP: ${pokemon.currentHp}/${pokemon.maxHp}<br>
+                    ${pokemon.moves.map(m => m.name).join(', ')}
+                `;
+                pokemonListElement.appendChild(card);
+            });
+            
+            menuScreen.classList.add('hidden');
+            pokemonScreen.classList.remove('hidden');
+        }
+        
+        function showBag() {
+            inventoryItems.innerHTML = '';
+            
+            game.inventory.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'item';
+                itemElement.textContent = `${item.name} x${item.count}`;
+                inventoryItems.appendChild(itemElement);
+            });
+            
+            menuScreen.classList.add('hidden');
+            bagScreen.classList.remove('hidden');
+        }
+        
+        function updateStats() {
+            document.getElementById('pokedex-count').textContent = game.pokedex;
+            document.getElementById('badge-count').textContent = game.badges;
+            
+            const minutes = Math.floor(game.time / 60000);
+            const seconds = Math.floor((game.time % 60000) / 1000);
+            document.getElementById('game-time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        function setupEventListeners() {
+            // Start screen buttons
+            document.getElementById('new-game-btn').addEventListener('click', startNewGame);
+            document.getElementById('continue-btn').addEventListener('click', startNewGame); // Same for demo
+            
+            // Menu options
+            document.querySelectorAll('.menu-option[data-menu]').forEach(option => {
+                option.addEventListener('click', function() {
+                    const menu = this.dataset.menu;
+                    if (menu === 'pokemon') {
+                        showPokemonList();
+                    } else if (menu === 'bag') {
+                        showBag();
+                    } else if (menu === 'exit') {
+                        hideMenu();
+                    } else {
+                        alert(`${menu.toUpperCase()} not implemented in demo!`);
+                    }
+                });
+            });
+            
+            // Back buttons
+            document.getElementById('back-to-menu').addEventListener('click', hideMenu);
+            document.getElementById('back-to-menu2').addEventListener('click', hideMenu);
+            
+            // Battle options
+            document.querySelectorAll('.battle-option[data-action]').forEach(option => {
+                option.addEventListener('click', function() {
+                    battleAction(this.dataset.action);
+                });
+            });
+            
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                game.keys[e.key.toLowerCase()] = true;
+                
+                // Prevent default for game keys
+                if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'enter', 'z', 'x'].includes(e.key.toLowerCase())) {
+                    e.preventDefault();
+                }
+                
+                handleInput();
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                game.keys[e.key.toLowerCase()] = false;
+            });
+            
+            // Touch controls for mobile
+            setupTouchControls();
+        }
+        
+        function handleInput() {
+            if (game.state === GameState.START) {
+                if (game.keys['enter'] || game.keys['z']) {
+                    startNewGame();
+                }
+            } else if (game.state === GameState.OVERWORLD) {
+                // Movement
+                if (game.keys['arrowup']) movePlayer(0, -1);
+                if (game.keys['arrowdown']) movePlayer(0, 1);
+                if (game.keys['arrowleft']) movePlayer(-1, 0);
+                if (game.keys['arrowright']) movePlayer(1, 0);
+                
+                // Action button
+                if (game.keys['z']) {
+                    // Check for interaction in facing direction
+                    checkNPCInteraction();
+                }
+                
+                // Menu button
+                if (game.keys['x']) {
+                    showMenu();
+                }
+            } else if (game.state === GameState.DIALOGUE) {
+                if (game.keys['z']) {
+                    showNextDialogueLine();
+                }
+            } else if (game.state === GameState.BATTLE) {
+                if (game.keys['x']) {
+                    // Cancel/back in battle
+                    moveOptions.classList.add('hidden');
+                    battleOptions.classList.remove('hidden');
+                }
+            } else if (game.state === GameState.MENU || 
+                      game.state === GameState.POKEMON_LIST || 
+                      game.state === GameState.BAG) {
+                if (game.keys['x']) {
+                    hideMenu();
+                }
+            }
+        }
+        
+        function setupTouchControls() {
+            // Simple touch controls for mobile
+            const touchZone = document.getElementById('gba-screen');
+            
+            // Swipe detection
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            touchZone.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                e.preventDefault();
+            });
+            
+            touchZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            });
+            
+            touchZone.addEventListener('touchend', (e) => {
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const diffX = touchEndX - touchStartX;
+                const diffY = touchEndY - touchStartY;
+                
+                // Determine swipe direction
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    // Horizontal swipe
+                    if (diffX > 20) {
+                        game.keys['arrowright'] = true;
+                        setTimeout(() => { game.keys['arrowright'] = false; }, 100);
+                    } else if (diffX < -20) {
+                        game.keys['arrowleft'] = true;
+                        setTimeout(() => { game.keys['arrowleft'] = false; }, 100);
+                    }
+                } else {
+                    // Vertical swipe
+                    if (diffY > 20) {
+                        game.keys['arrowdown'] = true;
+                        setTimeout(() => { game.keys['arrowdown'] = false; }, 100);
+                    } else if (diffY < -20) {
+                        game.keys['arrowup'] = true;
+                        setTimeout(() => { game.keys['arrowup'] = false; }, 100);
+                    }
+                }
+                
+                handleInput();
+                e.preventDefault();
+            });
+            
+            // Action buttons
+            const actionButton = document.createElement('div');
+            actionButton.style.position = 'absolute';
+            actionButton.style.bottom = '20px';
+            actionButton.style.right = '20px';
+            actionButton.style.width = '60px';
+            actionButton.style.height = '60px';
+            actionButton.style.background = '#306230';
+            actionButton.style.border = '3px solid #8bac0f';
+            actionButton.style.borderRadius = '50%';
+            actionButton.style.color = '#9bbc0f';
+            actionButton.style.textAlign = 'center';
+            actionButton.style.lineHeight = '60px';
+            actionButton.textContent = 'Z';
+            actionButton.style.zIndex = '1000';
+            actionButton.style.cursor = 'pointer';
+            
+            actionButton.addEventListener('touchstart', () => {
+                game.keys['z'] = true;
+                handleInput();
+                setTimeout(() => { game.keys['z'] = false; }, 100);
+            });
+            
+            const menuButton = actionButton.cloneNode();
+            menuButton.textContent = 'X';
+            menuButton.style.right = '100px';
+            
+            menuButton.addEventListener('touchstart', () => {
+                game.keys['x'] = true;
+                handleInput();
+                setTimeout(() => { game.keys['x'] = false; }, 100);
+            });
+            
+            document.getElementById('game-container').appendChild(actionButton);
+            document.getElementById('game-container').appendChild(menuButton);
+        }
+        
+        function startNewGame() {
+            game.state = GameState.OVERWORLD;
+            startScreen.classList.add('hidden');
+            overworldScreen.classList.remove('hidden');
+            game.time = 0;
+            updateStats();
+        }
+        
+        function gameLoop(timestamp) {
+            // Update game time
+            if (game.lastTime === 0) game.lastTime = timestamp;
+            const deltaTime = timestamp - game.lastTime;
+            game.lastTime = timestamp;
+            
+            if (game.state !== GameState.START) {
+                game.time += deltaTime;
+                if (Math.floor(game.time / 1000) !== Math.floor((game.time - deltaTime) / 1000)) {
+                    updateStats();
+                }
+            }
+            
+            // Game logic updates
+            // (Movement is handled via input)
+            
+            // Continue loop
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Initialize game when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
